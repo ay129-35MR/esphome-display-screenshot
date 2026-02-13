@@ -48,7 +48,12 @@ void DisplayCaptureHandler::setup() {
   else if (this->page_mode_ == GLOBAL_PAGES)
     mode_str = "global_pages";
 
-  ESP_LOGI(TAG, "Display capture registered at /screenshot (mode: %s, pages: %d)", mode_str, this->get_page_count());
+  int pages = this->get_page_count();
+  if (pages >= 0) {
+    ESP_LOGI(TAG, "Display capture registered at /screenshot (mode: %s, pages: %d)", mode_str, pages);
+  } else {
+    ESP_LOGI(TAG, "Display capture registered at /screenshot (mode: %s, pages: unknown)", mode_str);
+  }
 }
 
 int DisplayCaptureHandler::get_page_count() const {
@@ -57,8 +62,10 @@ int DisplayCaptureHandler::get_page_count() const {
       return this->pages_.size();
     case GLOBAL_PAGES:
       // Global mode doesn't inherently know the page count -- use page_names
-      // as the source of truth if provided, otherwise report 0 (unknown).
-      return this->page_names_.empty() ? 0 : this->page_names_.size();
+      // as the source of truth if provided, otherwise return -1 (unknown).
+      // The /info endpoint omits the "pages" field when the count is unknown,
+      // so clients can distinguish "unknown" from "zero pages".
+      return this->page_names_.empty() ? -1 : this->page_names_.size();
     default:
       return 1;
   }
@@ -173,6 +180,13 @@ void DisplayCaptureHandler::loop() {
 /// Screenshot handler: sets a flag for the main loop and blocks until the
 /// BMP is ready. The 5-second timeout prevents deadlocks if the main loop
 /// is stuck or the component is misconfigured.
+///
+/// IMPORTANT: After req->send(), the web server may still be reading from
+/// bmp_data_ asynchronously (ESPAsyncWebServer on Arduino does not copy
+/// the buffer). We do NOT free the buffer here -- it is freed at the start
+/// of the next generate_bmp_() call, by which time the response is
+/// guaranteed to have been sent. The ~225 KB PSRAM cost between requests
+/// is negligible on devices with 2-8 MB PSRAM.
 void DisplayCaptureHandler::handle_screenshot_(AsyncWebServerRequest *req) {
   int requested_page = -1;
   if (req->hasParam("page")) {
@@ -187,12 +201,10 @@ void DisplayCaptureHandler::handle_screenshot_(AsyncWebServerRequest *req) {
       auto *response = req->beginResponse(200, "image/bmp", this->bmp_data_, this->bmp_size_);
       response->addHeader("Cache-Control", "no-cache");
       req->send(response);
-      heap_caps_free(this->bmp_data_);
+      // Buffer is intentionally NOT freed here. See comment above.
     } else {
       req->send(500, "text/plain", "Failed to capture screenshot");
     }
-    this->bmp_data_ = nullptr;
-    this->bmp_size_ = 0;
   } else {
     this->request_pending_ = false;
     req->send(504, "text/plain", "Screenshot capture timed out");
@@ -216,9 +228,14 @@ void DisplayCaptureHandler::handle_info_(AsyncWebServerRequest *req) {
     mode_str = "global_pages";
 
   std::string json = "{";
-  json += "\"pages\":" + std::to_string(page_count);
-  json += ",\"width\":" + std::to_string(screen_w);
+  json += "\"width\":" + std::to_string(screen_w);
   json += ",\"height\":" + std::to_string(screen_h);
+  // Only include "pages" when the count is known (>= 0).
+  // In global_pages mode without page_names, the count is unknown (-1)
+  // and we omit the field so clients can distinguish "unknown" from "zero".
+  if (page_count >= 0) {
+    json += ",\"pages\":" + std::to_string(page_count);
+  }
   json += ",\"mode\":\"";
   json += mode_str;
   json += "\"";
@@ -230,12 +247,25 @@ void DisplayCaptureHandler::handle_info_(AsyncWebServerRequest *req) {
         json += ",";
       json += "\"";
       for (char c : this->page_names_[i]) {
-        if (c == '"')
-          json += "\\\"";
-        else if (c == '\\')
-          json += "\\\\";
-        else
-          json += c;
+        switch (c) {
+          case '"':  json += "\\\""; break;
+          case '\\': json += "\\\\"; break;
+          case '\n': json += "\\n"; break;
+          case '\r': json += "\\r"; break;
+          case '\t': json += "\\t"; break;
+          case '\b': json += "\\b"; break;
+          case '\f': json += "\\f"; break;
+          default:
+            // Escape remaining control characters (U+0000 through U+001F)
+            if (static_cast<unsigned char>(c) < 0x20) {
+              char buf[8];
+              snprintf(buf, sizeof(buf), "\\u%04x", static_cast<unsigned char>(c));
+              json += buf;
+            } else {
+              json += c;
+            }
+            break;
+        }
       }
       json += "\"";
     }
@@ -264,6 +294,17 @@ void DisplayCaptureHandler::handle_info_(AsyncWebServerRequest *req) {
 //   - Output size for 320x240: 54 + (960 * 240) = 230,454 bytes
 
 void DisplayCaptureHandler::generate_bmp_() {
+  // Free the previous screenshot buffer. This is deferred from
+  // handle_screenshot_() because the async web server may still be reading
+  // from the buffer when that function returns. By the time the next request
+  // reaches generate_bmp_(), the previous response is guaranteed to have
+  // been fully sent (the semaphore ensures only one request at a time).
+  if (this->bmp_data_ != nullptr) {
+    heap_caps_free(this->bmp_data_);
+    this->bmp_data_ = nullptr;
+    this->bmp_size_ = 0;
+  }
+
   // All physical display drivers (ILI9XXX, ST7789V, etc.) extend DisplayBuffer.
   // dynamic_cast is unavailable with -fno-rtti, so we use static_cast.
   auto *display_buffer = static_cast<display::DisplayBuffer *>(this->display_);
