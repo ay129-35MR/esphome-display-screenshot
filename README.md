@@ -1,5 +1,4 @@
-# display_capture
-
+# display_screenshot
 Remote screenshots for ESPHome displays over HTTP.
 
 Adds `GET /screenshot` to any ESP32 with a display and `web_server`. Fetch a pixel-perfect BMP of the live framebuffer, switch pages remotely with `?page=N`, and discover available pages with a JSON info endpoint.
