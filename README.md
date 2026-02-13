@@ -15,7 +15,8 @@ curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 
 If you're building display UIs on ESPHome, the dev cycle is painful: edit YAML, compile, upload, walk over, squint at a small TFT, walk back, repeat. This component lets you see what's on screen from anywhere with `curl`.
 
-With these screenshots you can then:
+With these screenshots you can:
+
 **Let your coding agent close the loop.** 
 After every display lambda change, Claude Code / Codex / Gemini / your coding agent of choice can `curl` a screenshot, view the BMP, and verify the layout looks right -- without you ever looking at the device. This is the use case that prompted the component: AI-assisted display development where the agent can check its own work.
 
