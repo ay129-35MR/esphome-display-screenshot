@@ -11,6 +11,25 @@ curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 
 ---
 
+## How it works
+
+This is a custom ESPHome component -- you add it to your device's YAML config alongside your existing display setup. After compiling and flashing (the normal ESPHome workflow), your device's built-in web server gains a new `/screenshot` endpoint. Any HTTP client (curl, a browser, a script, a coding agent) can then fetch a pixel-perfect BMP of whatever's on screen.
+
+The simplest way to try it: just open `http://<YOUR-DEVICE-IP>/screenshot` in any browser -- it will display (or download) the BMP directly. From the command line:
+
+```bash
+# Linux / macOS
+curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
+
+# Windows (PowerShell)
+Invoke-WebRequest -Uri http://<YOUR-DEVICE-IP>/screenshot -OutFile screenshot.bmp
+
+# Windows (Command Prompt)
+curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
+```
+
+---
+
 ## Why?
 
 If you're building display UIs on ESPHome, the dev cycle is painful: edit YAML, compile, upload, walk over, squint at a small TFT, walk back, repeat. This component lets you see what's on screen from anywhere with `curl`.
@@ -20,7 +39,7 @@ With these screenshots you can:
 **Let your coding agent close the loop.** 
 After every display lambda change, Claude Code / Codex / Gemini / your coding agent of choice can `curl` a screenshot, view the BMP, and verify the layout looks right -- without you ever looking at the device. This is the use case that prompted the component: AI-assisted display development where the agent can check its own work.
 
-**montior ESPHome devices remotely.**
+**monitor ESPHome devices remotely.**
 Expose the endpoint through ngrok or a Cloudflare tunnel and see what your device is displaying from anywhere. Useful for devices mounted on walls, inside enclosures, or at a different site entirely. No VPN needed.
 
 **do Home Assistant integration.**
