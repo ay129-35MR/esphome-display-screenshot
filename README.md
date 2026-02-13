@@ -1,57 +1,125 @@
-# Remote Screenshots for ESPHome Displays (Generic Component)
+# display_capture
 
-**TL;DR**  An ESPHome external component that adds `GET /screenshot` and `GET /screenshot/info` to any ESP32 with a display and `web_server`. Fetch a pixel-perfect BMP of the live framebuffer over HTTP, switch pages remotely with `?page=N`, and discover available pages with a JSON endpoint. Supports ESPHome's native page system, custom global-based paging, and single-screen devices.
+Remote screenshots for ESPHome displays over HTTP.
 
----
-
-## The Problem
-
-If you've built a display UI in ESPHome, you know the loop: edit the YAML lambda, compile, upload, walk over to the device, squint at a small TFT, realise the layout is off by a few pixels, walk back. Repeat for every change, every page.
-
-There's no built-in way to see what the display is rendering without physically looking at it. The web server dashboard shows entity states and buttons, but not what's actually on the screen.
-
-## The Solution
-
-`display_capture` is a drop-in external component that hooks into ESPHome's existing web server and registers HTTP endpoints. One `curl` command gives you a 24-bit BMP of exactly what's on the display:
-
-```bash
-curl -o screenshot.bmp http://<device-ip>/screenshot
-```
-You can then (for example) get Claude Code / Codex / Gemini / [insert your coding agent du jour here] to check its own work by reviewing the screen shot, or post device status to a web page (Ngrok, Home assistant webhook etc) to see what your device is displaying remotely.
-
-Want to see a specific page without touching the device?
-
-```bash
-curl -o page2.bmp "http://<device-ip>/screenshot?page=2"
-```
-
-Want to discover what's available programmatically?
-
-```bash
-curl http://<device-ip>/screenshot/info
-# {"pages":3,"width":320,"height":240,"mode":"native_pages","page_names":["Main","Graph","Settings"]}
-```
+Adds `GET /screenshot` to any ESP32 with a display and `web_server`. Fetch a pixel-perfect BMP of the live framebuffer, switch pages remotely with `?page=N`, and discover available pages with a JSON info endpoint.
 
 ---
 
-## Three Page Modes
+## Quick Start
 
-The component supports every common ESPHome display pattern:
+### 1. Get the component
 
-### 1. Minimal No Pages
+**Option A -- Clone this repo into your ESPHome config directory:**
 
-Just capture whatever's on screen. Three lines of config:
+```bash
+cd /path/to/your/esphome/config
+git clone https://github.com/YOUR_USERNAME/display_capture.git components/display_capture
+```
+
+**Option B -- Reference it directly from GitHub in your YAML:**
 
 ```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/YOUR_USERNAME/display_capture
+    components: [display_capture]
+```
+
+**Option C -- Copy the files manually:**
+
+Download the repo and copy the `display_capture` folder into your ESPHome `components/` directory:
+
+```
+your-esphome-config/
+  components/
+    display_capture/
+      __init__.py
+      display_capture.h
+      display_capture.cpp
+  your-device.yaml
+```
+
+### 2. Make sure you have `web_server` enabled
+
+If you don't already have this in your YAML, add it:
+
+```yaml
+web_server:
+  port: 80
+```
+
+### 3. Tell ESPHome where to find the component
+
+If you used Option A or C (local files), add this to your YAML:
+
+```yaml
+external_components:
+  - source:
+      type: local
+      path: components
+```
+
+If you used Option B (git), you already did this in step 1.
+
+### 4. Add the `display_capture` block
+
+Pick the config that matches your setup (see [Page Modes](#which-page-mode-do-i-need) below):
+
+```yaml
+# Simplest -- just capture whatever's on screen
 display_capture:
   display_id: my_display
 ```
 
-### 2. Native ESPHome Pages
+### 5. Compile, upload, and test
 
-If your display uses ESPHome's built-in page system (`pages:` in the display config), reference them directly:
+```bash
+esphome run your-device.yaml
+```
+
+Once it's running:
+
+```bash
+# Grab a screenshot
+curl -o screenshot.bmp http://<device-ip>/screenshot
+
+# Open it
+open screenshot.bmp        # macOS
+xdg-open screenshot.bmp    # Linux
+start screenshot.bmp        # Windows
+```
+
+That's it. You should see a pixel-perfect BMP of your display.
+
+---
+
+## Which page mode do I need?
+
+Look at how your display is set up in YAML and pick the matching config:
+
+### "I have a single screen with a `lambda:` -- no pages"
 
 ```yaml
+# Your display config probably looks like:
+display:
+  - platform: ili9xxx
+    id: my_display
+    lambda: |-
+      it.printf(10, 10, id(font), "Hello World");
+
+# Just add this:
+display_capture:
+  display_id: my_display
+```
+
+`?page=N` is ignored in this mode -- there's only one screen to capture.
+
+### "I use ESPHome's built-in `pages:` system"
+
+```yaml
+# Your display config probably looks like:
 display:
   - platform: ili9xxx
     id: my_display
@@ -61,95 +129,189 @@ display:
           it.printf(10, 10, id(font), "Main");
       - id: page_graph
         lambda: |-
-          // graph rendering...
+          // graph code...
       - id: page_settings
         lambda: |-
           it.printf(10, 10, id(font), "Settings");
 
+# List the same page IDs here:
 display_capture:
   display_id: my_display
   pages:
     - page_main
     - page_graph
     - page_settings
-  page_names: ["Main", "Graph", "Settings"]
+  page_names: ["Main", "Graph", "Settings"]  # optional, shows up in /info
 ```
 
-The component uses `show_page()` / `get_active_page()` to switch and restore the same mechanism ESPHome uses internally.
+Now `?page=0` captures page_main, `?page=1` captures page_graph, etc.
 
-### 3. Global-Based Pages
+### "I track the current page with a `globals` int"
 
-For devices that track the current page with an int global (common in complex UIs with custom page logic):
+This is common in complex UIs where a rotary encoder or button sets an integer and the display lambda switches on it.
 
 ```yaml
+# Your globals probably look like:
 globals:
   - id: current_page
     type: int
     restore_value: no
     initial_value: '0'
 
+# And your display lambda does something like:
+# if (id(current_page) == 0) { ... } else if (id(current_page) == 1) { ... }
+
+# Point display_capture at the global:
 display_capture:
   display_id: my_display
   page_global: current_page
-  sleep_global: is_sleeping     # optional, wakes display for capture
-  page_names: ["Main", "History", "Guest Info", "Camera", "Network", "Kill Switch", "Cleaning"]
+  sleep_global: is_sleeping     # optional -- if you have a sleep/screensaver global
+  page_names: ["Main", "History", "Settings"]  # optional
 ```
 
-`pages` and `page_global` are mutually exclusive ESPHome config validation enforces this.
+**Note:** `pages` and `page_global` are mutually exclusive -- ESPHome will reject your config if you specify both.
 
 ---
 
-## The Info Endpoint
+## Endpoints
 
-`GET /screenshot/info` returns JSON metadata so callers can discover what's available without trial and error:
+Once running, your device exposes two new HTTP endpoints:
+
+### `GET /screenshot`
+
+Returns a 24-bit BMP image of the current display.
+
+```bash
+curl -o screenshot.bmp http://192.168.1.100/screenshot
+```
+
+### `GET /screenshot?page=N`
+
+Switches to page N (0-indexed), captures it, then switches back. The physical display flashes briefly (~50ms).
+
+```bash
+# Capture page 2
+curl -o page2.bmp "http://192.168.1.100/screenshot?page=2"
+
+# Capture all pages in a loop
+for p in 0 1 2 3; do
+  curl -s -o "page${p}.bmp" "http://192.168.1.100/screenshot?page=${p}"
+done
+```
+
+### `GET /screenshot/info`
+
+Returns JSON metadata -- useful for scripts that need to discover pages automatically.
+
+```bash
+curl http://192.168.1.100/screenshot/info
+```
 
 ```json
 {
-  "pages": 7,
+  "pages": 3,
   "width": 320,
   "height": 240,
-  "mode": "global_pages",
-  "page_names": ["Main", "History", "Guest Info", "Camera", "Network", "Kill Switch", "Cleaning"]
+  "mode": "native_pages",
+  "page_names": ["Main", "Graph", "Settings"]
 }
 ```
 
-This runs synchronously on the HTTP task no semaphore needed since it only reads immutable setup-time data.
+### Response Codes
+
+| Code | Meaning |
+|------|---------|
+| 200 | Success -- BMP or JSON returned |
+| 500 | PSRAM allocation failed (device out of memory) |
+| 504 | Main loop didn't respond in 5 seconds (device too busy) |
 
 ---
 
-## Setup
+## Configuration Reference
 
-```yaml
-external_components:
-  - source:
-      type: local
-      path: components
+| Key | Type | Required | Description |
+|-----|------|----------|-------------|
+| `display_id` | ID | **Yes** | Your display component's `id` |
+| `pages` | list of IDs | No | `DisplayPage` IDs -- for ESPHome native pages |
+| `page_global` | ID | No | `globals` int that tracks the current page |
+| `sleep_global` | ID | No | `globals` bool -- wakes display before capture |
+| `page_names` | list of strings | No | Human-readable names for the `/screenshot/info` endpoint |
 
-web_server:
-  port: 80
+---
 
-display_capture:
-  display_id: my_display
-  # Plus one of: pages, page_global, or neither (for single-screen)
+## Requirements
+
+- **ESP32 with PSRAM** -- ESP32-S3, ESP32-S2, or ESP32 WROVER. The ~225 KB BMP buffer is allocated in PSRAM. Regular ESP32 without PSRAM won't work.
+- **Display using RGB565** -- any `DisplayBuffer` subclass in `BITS_16` colour mode (ILI9XXX, ST7789V, ILI9341, ILI9488, etc.)
+- **`web_server` component enabled** -- the screenshot endpoint hooks into ESPHome's built-in web server
+
+---
+
+## What can you do with this?
+
+**Let your coding agent check its own work.** After every display lambda change, Claude Code / Codex / Gemini / your coding agent of choice can `curl` a screenshot, view the BMP, and verify the layout looks right -- without you ever looking at the device.
+
+**Remote device monitoring.** Expose the endpoint through ngrok or a Cloudflare tunnel and see what your device is displaying from anywhere. No VPN needed.
+
+**Home Assistant integration.** Fire a webhook that fetches the screenshot and posts it to a notification, Lovelace card, or Telegram bot.
+
+**Auto-generated documentation.** Script a loop that hits `/screenshot/info`, captures every page, and dumps them into a docs folder.
+
+**Visual regression testing.** Capture baseline screenshots, make changes, capture again, diff. Catch layout breakage before it ships.
+
+**Remote debugging.** "The display looks wrong" -- now you can see exactly what they see without asking them to photograph their screen.
+
+---
+
+## Troubleshooting
+
+### Linker error: undefined reference to vtable
+
+PlatformIO's CMake cache doesn't know about the new `.cpp` file. Clear the cache (one-time fix):
+
+```bash
+rm -rf .esphome/build/<device>/.pioenvs/<device>/CMakeCache.txt \
+       .esphome/build/<device>/.pioenvs/<device>/CMakeFiles/
 ```
 
-### Prerequisites
+Then compile again -- it'll pick up the file and won't happen again.
 
-- ESP32 with **PSRAM** (ESP32-S3, ESP32-S2, ESP32 WROVER)
-- A `display` component using **BITS_16** (RGB565) color mode
-- The built-in `web_server` component enabled
+### 504 timeout on `/screenshot`
+
+The main ESPHome loop didn't respond within 5 seconds. This usually means:
+- The device is very busy (heavy sensor polling, large display updates)
+- The `display_id` doesn't match your actual display component's ID
+
+### 500 error on `/screenshot`
+
+PSRAM allocation failed. Check that your board actually has PSRAM and it's enabled in your board config. For ESP32-S3, you may need:
+
+```yaml
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+psram:
+  mode: octal  # or quad, depending on your board
+```
+
+### Screenshot is all black
+
+If you're using `sleep_global`, make sure the global ID matches the bool your display lambda checks. The component sets it to `false` before capture, captures, then restores it.
+
+If you're not using sleep, check that your display lambda is actually drawing something (add a test `it.fill(Color(255, 0, 0));` to confirm).
+
+### Screenshot colours look wrong
+
+The component assumes RGB565 (BITS_16) buffer format, which is the default for ILI9XXX displays. If your display uses a different colour mode, the output will be garbled.
 
 ---
 
-## How It Works
+## How It Works (for the curious)
 
-### The Threading Problem
+### Thread Safety
 
-ESPHome's HTTP server (`web_server_idf`) runs on its own FreeRTOS task. The display buffer is written by the main ESPHome loop task during `display.update()`. Reading the buffer from the HTTP task while the main loop is mid-render would be a data race.
-
-### The Semaphore Solution
-
-The component uses a binary semaphore to hand off work to the main loop:
+ESPHome's web server runs on a separate FreeRTOS task from the main loop. The display buffer can only be safely accessed from the main loop. The component uses a binary semaphore to coordinate:
 
 ```
 HTTP task                                Main loop
@@ -169,87 +331,24 @@ handleRequest()
   free PSRAM buffer
 ```
 
-All buffer access happens on the main loop task. The HTTP task just blocks until the data is ready, then sends it.
-
 ### Protected Buffer Access
 
-ESPHome's `DisplayBuffer::buffer_` is `protected` no public API to read raw pixels. The component uses `#define protected public` in a separate `.cpp` translation unit (the standard approach for accessing internal ESPHome members without forking the framework).
+`DisplayBuffer::buffer_` is `protected` in ESPHome -- there's no public API to read pixels back. The component uses `#define protected public` in a separate `.cpp` translation unit. This is the standard approach for accessing ESPHome internals without forking the framework.
 
-### Runtime Safety
+### Rotation Handling
 
-Uses `dynamic_cast<DisplayBuffer*>` to safely access the pixel buffer, with graceful error handling if the display isn't a compatible subclass.
-
-### Rotation-Correct Output
-
-The output BMP always matches what you'd see looking at the physical display, regardless of the panel's native orientation. Handles all four rotations (0/90/180/270).
+The output BMP always matches what you see on the physical display, regardless of rotation setting. The component applies the inverse of ESPHome's rotation transform when reading pixels back from the buffer.
 
 ---
-
-## Configuration Reference
-
-| Key | Type | Required | Description |
-|-----|------|----------|-------------|
-| `display_id` | ID | **Yes** | Reference to any `Display` component |
-| `pages` | list of IDs | No | `DisplayPage` IDs for native page mode |
-| `page_global` | ID | No | `globals` int for global page mode |
-| `sleep_global` | ID | No | `globals` bool for sleep-aware capture |
-| `page_names` | list of strings | No | Human-readable names for the info endpoint |
-
-## HTTP Endpoints
-
-| Endpoint | Content-Type | Description |
-|----------|-------------|-------------|
-| `GET /screenshot` | `image/bmp` | Capture current screen |
-| `GET /screenshot?page=N` | `image/bmp` | Capture specific page (0-indexed) |
-| `GET /screenshot/info` | `application/json` | Page count, dimensions, mode, names |
-
----
-
-## Limitations
-
-- **RGB565 only** assumes BITS_16 buffer format
-- **PSRAM required** ~225 KB BMP buffer won't fit in internal SRAM
-- **Single concurrent request** one screenshot at a time
-- **Brief visual flash** when `?page=N` switches pages, the physical display shows the requested page for ~50ms before restoring
-
-## Build Gotcha: CMake GLOB Caching
-
-When first adding this component, PlatformIO's CMake cache may not discover the new `.cpp` file. If you get a linker error:
-
-```bash
-rm -rf .esphome/build/<device>/.pioenvs/<device>/CMakeCache.txt \
-       .esphome/build/<device>/.pioenvs/<device>/CMakeFiles/
-```
-
-One-time fix subsequent compiles work automatically.
-
----
-
-## Use Cases
-
-- **UI iteration**: See your display lambda changes without walking to the device
-- **CI/visual regression**: Capture screenshots as part of a build pipeline, diff against a known-good set
-- **Remote debugging**: Check what a deployed device is actually showing
-- **Documentation**: Generate display page images for project docs
-- **AI-assisted development**: Let Claude Code (or similar) see the display and suggest layout changes
-- **Programmatic discovery**: Use the info endpoint to build tools that enumerate and capture all pages automatically
 
 ## Compatibility
 
-Tested on ST7789V 240x320 at rotation 90 (320x240 landscape) on ESP32-S3, with ESPHome 2025.11.x and later. Should work with any `DisplayBuffer` subclass in BITS_16 mode on any PSRAM-equipped ESP32.
+| | |
+|---|---|
+| **Tested on** | ST7789V 240x320 @ rotation 90, ESP32-S3 |
+| **ESPHome** | 2025.11.x and later |
+| **Should work with** | Any `DisplayBuffer` subclass in BITS_16 mode on any PSRAM-equipped ESP32 |
 
----
+## License
 
-## File Structure
-
-```
-components/display_capture/
-  __init__.py               ESPHome Python codegen (config schema + to_code)
-  display_capture.h         C++ class declaration (forward-declaration safe)
-  display_capture.cpp       Implementation (buffer access, BMP generation, info endpoint)
-  README.md                 Technical reference documentation
-```
-
-## Source
-
-The component is designed as a self-contained external component directory. Copy `components/display_capture/` into your ESPHome config and add the `external_components` + `display_capture` blocks to your YAML.
+MIT
