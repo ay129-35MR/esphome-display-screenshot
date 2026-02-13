@@ -36,23 +36,12 @@ If you're building display UIs on ESPHome, the dev cycle is painful: edit YAML, 
 
 With these screenshots you can:
 
-**Let your coding agent close the loop.** 
-After every display lambda change, Claude Code / Codex / Gemini / your coding agent of choice can `curl` a screenshot, view the BMP, and verify the layout looks right -- without you ever looking at the device. This is the use case that prompted the component: AI-assisted display development where the agent can check its own work.
-
-**monitor ESPHome devices remotely.**
-Expose the endpoint through ngrok or a Cloudflare tunnel and see what your device is displaying from anywhere. Useful for devices mounted on walls, inside enclosures, or at a different site entirely. No VPN needed.
-
-**do Home Assistant integration.**
-Fire a webhook that fetches the screenshot and posts it to a notification, Lovelace card, or Telegram bot. "What does the controller screen say right now?" -- answered without leaving the couch.
-
-**Auto-generate documentation.**
-Script a loop that hits `/screenshot/info` to discover all pages, captures each one, and dumps them into a docs folder. Re-run after every UI change and your docs stay current.
-
-**do visual regression testing.** 
-Capture baseline screenshots, make changes, capture again, diff. Catch layout breakage before it ships.
-
-**do some remote debugging.** 
-"The display looks wrong" -- now you can see exactly what they see without asking them to photograph their screen.
+- **Let your coding agent close the loop.** After every display lambda change, Claude Code / Codex / Gemini / your coding agent of choice can `curl` a screenshot, view the BMP, and verify the layout looks right -- without you ever looking at the device. This is the use case that prompted the component: AI-assisted display development where the agent can check its own work.
+- **Monitor ESPHome devices remotely.** Expose the endpoint through ngrok or a Cloudflare tunnel and see what your device is displaying from anywhere. Useful for devices mounted on walls, inside enclosures, or at a different site entirely. No VPN needed.
+- **Integrate with Home Assistant.** Fire a webhook that fetches the screenshot and posts it to a notification, Lovelace card, or Telegram bot. "What does the controller screen say right now?" -- answered without leaving the couch.
+- **Auto-generate documentation.** Script a loop that hits `/screenshot/info` to discover all pages, captures each one, and dumps them into a docs folder. Re-run after every UI change and your docs stay current.
+- **Run visual regression tests.** Capture baseline screenshots, make changes, capture again, diff. Catch layout breakage before it ships.
+- **Debug remotely.** "The display looks wrong" -- now you can see exactly what they see without asking them to photograph their screen.
 
 ---
 
