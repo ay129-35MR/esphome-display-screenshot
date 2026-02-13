@@ -5,8 +5,9 @@ A custom ESPHome component to grab remote screenshots for ESPHome displays over 
 
 Adds `GET /screenshot` to any ESP32 with a display and `web_server`. Fetch a pixel-perfect BMP of the live framebuffer, switch pages remotely with `?page=N`, and discover available pages with a JSON info endpoint.
 
-```bash
-curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
+Just open this in your browser:
+```
+http://<YOUR-DEVICE-IP>/screenshot
 ```
 
 ---
@@ -32,7 +33,7 @@ curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 
 ## Why?
 
-If you're building display UIs on ESPHome, the dev cycle is painful: edit YAML, compile, upload, walk over, squint at a small TFT, walk back, repeat. This component lets you see what's on screen from anywhere with `curl`.
+If you're building display UIs on ESPHome, the dev cycle is painful: edit YAML, compile, upload, walk over, squint at a small TFT, walk back, repeat. This component lets you see what's on screen from anywhere -- just open a URL in your browser.
 
 With these screenshots you can:
 
@@ -47,7 +48,7 @@ With these screenshots you can:
 
 ## Example Screenshots
 
-These were captured from a hot water controller built with an ESP32-S3 and a ST7789V 240x320 TFT (rotated to landscape), driven by a rotary encoder. The device has 6 pages managed via a `globals<int>`. Each image was fetched with a single `curl` call to `/screenshot?page=N` and converted from BMP to PNG.
+These were captured from a hot water controller built with an ESP32-S3 and a ST7789V 240x320 TFT (rotated to landscape), driven by a rotary encoder. The device has 6 pages managed via a `globals<int>`. Each image was fetched with a single HTTP request to `/screenshot?page=N` and converted from BMP to PNG.
 
 | | | |
 |:---:|:---:|:---:|
@@ -56,8 +57,9 @@ These were captured from a hot water controller built with an ESP32-S3 and a ST7
 | ![Cleaning Schedule](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page3.png) | ![Camera](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page4.png) | ![Display Brightness](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page5.png) |
 | Page 3 -- Cleaning Schedule | Page 4 -- Camera | Page 5 -- Display Brightness |
 
+To capture a specific page, add `?page=N` to the URL -- in your browser or from the command line:
 ```bash
-# These screenshots were captured with:
+# Capture all pages in a loop
 for p in 0 1 2 3 4 5; do
   curl -s -o "page${p}.bmp" "http://<YOUR-DEVICE-IP>/screenshot?page=${p}"
 done
@@ -82,14 +84,17 @@ Two HTTP endpoints:
 | `GET /screenshot[?page=N]` | 24-bit BMP image of the display |
 | `GET /screenshot/info` | JSON with page count, dimensions, mode, and page names |
 
+Open any of these in your browser, or use curl to save to a file:
+
+```
+http://<YOUR-DEVICE-IP>/screenshot            # current screen
+http://<YOUR-DEVICE-IP>/screenshot?page=2     # specific page
+http://<YOUR-DEVICE-IP>/screenshot/info        # JSON metadata
+```
+
 ```bash
-# Grab the current screen
 curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
-
-# Capture a specific page
 curl -o page2.bmp "http://<YOUR-DEVICE-IP>/screenshot?page=2"
-
-# Discover what's available
 curl http://<YOUR-DEVICE-IP>/screenshot/info
 # {"pages":3,"width":320,"height":240,"mode":"native_pages","page_names":["Main","Graph","Settings"]}
 ```
@@ -115,14 +120,9 @@ curl http://<YOUR-DEVICE-IP>/screenshot/info
 
 ### 1. Get the component
 
-**Option A -- Clone this repo into your ESPHome config directory:**
+**Option A -- Reference it directly from GitHub in your YAML (easiest):**
 
-```bash
-cd /path/to/your/esphome/config
-git clone https://github.com/ay129-35MR/esphome-display-screenshot.git components/display_capture
-```
-
-**Option B -- Reference it directly from GitHub in your YAML:**
+No download needed -- ESPHome fetches the component automatically at compile time:
 
 ```yaml
 external_components:
@@ -132,9 +132,9 @@ external_components:
     components: [display_capture]
 ```
 
-**Option C -- Copy the files manually:**
+**Option B -- Download and copy the files manually:**
 
-Download the repo and copy the `display_capture` folder into your ESPHome `components/` directory:
+Download the repo from GitHub and copy the `display_capture` folder into your ESPHome `components/` directory:
 
 ```
 your-esphome-config/
@@ -144,6 +144,13 @@ your-esphome-config/
       display_capture.h        <-- component source (don't edit)
       display_capture.cpp      <-- component source (don't edit)
   your-device.yaml             <-- YOUR config (edit this)
+```
+
+**Option C -- Clone with git:**
+
+```bash
+cd /path/to/your/esphome/config
+git clone https://github.com/ay129-35MR/esphome-display-screenshot.git components/display_capture
 ```
 
 ### 2. Make sure you have `web_server` enabled
@@ -157,7 +164,7 @@ web_server:
 
 ### 3. Tell ESPHome where to find the component
 
-If you used Option A or C (local files), add this to your YAML:
+If you used Option B or C (local files), add this to your YAML:
 
 ```yaml
 external_components:
@@ -166,7 +173,7 @@ external_components:
       path: components
 ```
 
-If you used Option B (git), you already did this in step 1.
+If you used Option A (git), you already did this in step 1.
 
 ### 4. Add the `display_capture` block
 
@@ -180,20 +187,20 @@ display_capture:
 
 ### 5. Compile, upload, and test
 
-```bash
-esphome run your-device.yaml
-```
+Compile and flash your device the way you normally would:
 
-Once it's running:
+- **Home Assistant ESPHome add-on:** Open the ESPHome dashboard in HA, click the three-dot menu on your device, and hit **Install**.
+- **ESPHome web dashboard:** Click **Install** â†’ **Wirelessly** (or **Plug into this computer** for first flash).
+- **CLI:** `esphome run your-device.yaml`
+
+Once it's running, open `http://<YOUR-DEVICE-IP>/screenshot` in any browser -- you'll see (or download) a BMP of your display. Or from the command line:
 
 ```bash
-# Grab a screenshot
+# Linux / macOS
 curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 
-# Open it
-open screenshot.bmp        # macOS
-xdg-open screenshot.bmp    # Linux
-start screenshot.bmp        # Windows
+# Windows (PowerShell)
+Invoke-WebRequest -Uri http://<YOUR-DEVICE-IP>/screenshot -OutFile screenshot.bmp
 ```
 
 That's it. You should see a pixel-perfect BMP of your display.
@@ -284,7 +291,11 @@ Once running, your device exposes two new HTTP endpoints:
 
 ### `GET /screenshot`
 
-Returns a 24-bit BMP image of the current display.
+Returns a 24-bit BMP image of the current display. Open in a browser or save from the command line:
+
+```
+http://<YOUR-DEVICE-IP>/screenshot
+```
 
 ```bash
 curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
@@ -294,11 +305,16 @@ curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 
 Switches to page N (0-indexed), captures it, then switches back. The physical display flashes briefly (~50ms).
 
-```bash
-# Capture page 2
-curl -o page2.bmp "http://<YOUR-DEVICE-IP>/screenshot?page=2"
+```
+http://<YOUR-DEVICE-IP>/screenshot?page=2
+```
 
-# Capture all pages in a loop
+```bash
+curl -o page2.bmp "http://<YOUR-DEVICE-IP>/screenshot?page=2"
+```
+
+To save all pages at once:
+```bash
 for p in 0 1 2 3; do
   curl -s -o "page${p}.bmp" "http://<YOUR-DEVICE-IP>/screenshot?page=${p}"
 done
@@ -306,7 +322,11 @@ done
 
 ### `GET /screenshot/info`
 
-Returns JSON metadata -- useful for scripts that need to discover pages automatically.
+Returns JSON metadata -- useful for scripts that need to discover pages automatically. Open in your browser to see the JSON directly, or fetch with curl:
+
+```
+http://<YOUR-DEVICE-IP>/screenshot/info
+```
 
 ```bash
 curl http://<YOUR-DEVICE-IP>/screenshot/info
@@ -348,14 +368,16 @@ curl http://<YOUR-DEVICE-IP>/screenshot/info
 
 ### Linker error: undefined reference to vtable
 
-PlatformIO's CMake cache doesn't know about the new `.cpp` file. Clear the cache (one-time fix):
+PlatformIO's CMake cache doesn't know about the new `.cpp` file. Do a **Clean Build** (one-time fix):
 
-```bash
-rm -rf .esphome/build/<YOUR-DEVICE>/.pioenvs/<YOUR-DEVICE>/CMakeCache.txt \
-       .esphome/build/<YOUR-DEVICE>/.pioenvs/<YOUR-DEVICE>/CMakeFiles/
-```
+- **Home Assistant ESPHome add-on / web dashboard:** Click the three-dot menu on your device â†’ **Clean Build Files**, then install again.
+- **CLI:** Delete the cached build files and recompile:
+  ```bash
+  rm -rf .esphome/build/<YOUR-DEVICE>/.pioenvs/<YOUR-DEVICE>/CMakeCache.txt \
+         .esphome/build/<YOUR-DEVICE>/.pioenvs/<YOUR-DEVICE>/CMakeFiles/
+  ```
 
-Then compile again -- it'll pick up the file and won't happen again.
+This only happens once -- subsequent compiles will pick up the file automatically.
 
 ### 504 timeout on `/screenshot`
 
