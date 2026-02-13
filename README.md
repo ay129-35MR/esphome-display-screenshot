@@ -5,7 +5,7 @@ Remote screenshots for ESPHome displays over HTTP.
 Adds `GET /screenshot` to any ESP32 with a display and `web_server`. Fetch a pixel-perfect BMP of the live framebuffer, switch pages remotely with `?page=N`, and discover available pages with a JSON info endpoint.
 
 ```bash
-curl -o screenshot.bmp http://<device-ip>/screenshot
+curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 ```
 
 ---
@@ -28,6 +28,28 @@ If you're building display UIs on ESPHome, the dev cycle is painful: edit YAML, 
 
 ---
 
+## Example Screenshots
+
+These were captured from a hot water controller built with an ESP32-S3 and a ST7789V 240x320 TFT (rotated to landscape), driven by a rotary encoder. The device has 7 pages managed via a `globals<int>`. Each image was fetched with a single `curl` call to `/screenshot?page=N` and converted from BMP to PNG.
+
+| | | |
+|:---:|:---:|:---:|
+| ![Main](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page0.png) | ![History](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page1.png) | ![Guest Info](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page2.png) |
+| Page 0 -- Main | Page 1 -- History | Page 2 -- Guest Info |
+| ![Camera](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page3.png) | ![Display](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page4.png) | ![Kill Switch](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page5.png) |
+| Page 3 -- Camera | Page 4 -- Display | Page 5 -- Kill Switch |
+| ![Cleaning Schedule](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page6.png) | | |
+| Page 6 -- Cleaning Schedule | | |
+
+```bash
+# These screenshots were captured with:
+for p in 0 1 2 3 4 5 6; do
+  curl -s -o "page${p}.bmp" "http://<YOUR-DEVICE-IP>/screenshot?page=${p}"
+done
+```
+
+---
+
 ## What it supports
 
 Three page modes, covering every common ESPHome display pattern:
@@ -47,13 +69,13 @@ Two HTTP endpoints:
 
 ```bash
 # Grab the current screen
-curl -o screenshot.bmp http://192.168.1.100/screenshot
+curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 
 # Capture a specific page
-curl -o page2.bmp "http://192.168.1.100/screenshot?page=2"
+curl -o page2.bmp "http://<YOUR-DEVICE-IP>/screenshot?page=2"
 
 # Discover what's available
-curl http://192.168.1.100/screenshot/info
+curl http://<YOUR-DEVICE-IP>/screenshot/info
 # {"pages":3,"width":320,"height":240,"mode":"native_pages","page_names":["Main","Graph","Settings"]}
 ```
 
@@ -69,13 +91,20 @@ curl http://192.168.1.100/screenshot/info
 
 ## Quick Start
 
+> **You only need to edit your ESPHome YAML file.** The `.h` and `.cpp` files are the component source -- don't modify them. All configuration is done in YAML.
+>
+> The examples below use placeholder values you'll need to replace:
+> - **`<YOUR-DEVICE-IP>`** -- your ESP32's IP address (find it in ESPHome logs or your router's DHCP table)
+> - **`my_display`** -- the `id` of your display component in your YAML
+> - **`your-device.yaml`** -- your ESPHome YAML filename
+
 ### 1. Get the component
 
 **Option A -- Clone this repo into your ESPHome config directory:**
 
 ```bash
 cd /path/to/your/esphome/config
-git clone https://github.com/YOUR_USERNAME/display_capture.git components/display_capture
+git clone https://github.com/ay129-35MR/esphome-display-screenshot.git components/display_capture
 ```
 
 **Option B -- Reference it directly from GitHub in your YAML:**
@@ -84,7 +113,7 @@ git clone https://github.com/YOUR_USERNAME/display_capture.git components/displa
 external_components:
   - source:
       type: git
-      url: https://github.com/YOUR_USERNAME/display_capture
+      url: https://github.com/ay129-35MR/esphome-display-screenshot
     components: [display_capture]
 ```
 
@@ -96,10 +125,10 @@ Download the repo and copy the `display_capture` folder into your ESPHome `compo
 your-esphome-config/
   components/
     display_capture/
-      __init__.py
-      display_capture.h
-      display_capture.cpp
-  your-device.yaml
+      __init__.py              <-- component source (don't edit)
+      display_capture.h        <-- component source (don't edit)
+      display_capture.cpp      <-- component source (don't edit)
+  your-device.yaml             <-- YOUR config (edit this)
 ```
 
 ### 2. Make sure you have `web_server` enabled
@@ -131,7 +160,7 @@ Pick the config that matches your setup (see [Which page mode do I need?](#which
 ```yaml
 # Simplest -- just capture whatever's on screen
 display_capture:
-  display_id: my_display
+  display_id: my_display  # <-- change to match YOUR display's id
 ```
 
 ### 5. Compile, upload, and test
@@ -144,7 +173,7 @@ Once it's running:
 
 ```bash
 # Grab a screenshot
-curl -o screenshot.bmp http://<device-ip>/screenshot
+curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 
 # Open it
 open screenshot.bmp        # macOS
@@ -243,7 +272,7 @@ Once running, your device exposes two new HTTP endpoints:
 Returns a 24-bit BMP image of the current display.
 
 ```bash
-curl -o screenshot.bmp http://192.168.1.100/screenshot
+curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 ```
 
 ### `GET /screenshot?page=N`
@@ -252,11 +281,11 @@ Switches to page N (0-indexed), captures it, then switches back. The physical di
 
 ```bash
 # Capture page 2
-curl -o page2.bmp "http://192.168.1.100/screenshot?page=2"
+curl -o page2.bmp "http://<YOUR-DEVICE-IP>/screenshot?page=2"
 
 # Capture all pages in a loop
 for p in 0 1 2 3; do
-  curl -s -o "page${p}.bmp" "http://192.168.1.100/screenshot?page=${p}"
+  curl -s -o "page${p}.bmp" "http://<YOUR-DEVICE-IP>/screenshot?page=${p}"
 done
 ```
 
@@ -265,7 +294,7 @@ done
 Returns JSON metadata -- useful for scripts that need to discover pages automatically.
 
 ```bash
-curl http://192.168.1.100/screenshot/info
+curl http://<YOUR-DEVICE-IP>/screenshot/info
 ```
 
 ```json
@@ -307,8 +336,8 @@ curl http://192.168.1.100/screenshot/info
 PlatformIO's CMake cache doesn't know about the new `.cpp` file. Clear the cache (one-time fix):
 
 ```bash
-rm -rf .esphome/build/<device>/.pioenvs/<device>/CMakeCache.txt \
-       .esphome/build/<device>/.pioenvs/<device>/CMakeFiles/
+rm -rf .esphome/build/<YOUR-DEVICE>/.pioenvs/<YOUR-DEVICE>/CMakeCache.txt \
+       .esphome/build/<YOUR-DEVICE>/.pioenvs/<YOUR-DEVICE>/CMakeFiles/
 ```
 
 Then compile again -- it'll pick up the file and won't happen again.
