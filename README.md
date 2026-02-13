@@ -1,32 +1,22 @@
 
 # display_screenshot
 
-A custom ESPHome component to grab remote screenshots for ESPHome displays over HTTP.
+A custom ESPHome component that adds remote screenshots to any ESP32 display over HTTP.
 
-Adds `GET /screenshot` to any ESP32 with a display and `web_server`. Fetch a pixel-perfect BMP of the live framebuffer, switch pages remotely with `?page=N`, and discover available pages with a JSON info endpoint.
+Add it to your device's YAML config alongside your existing display setup, compile and flash as normal, and your device's built-in web server gains a new `/screenshot` endpoint. It serves a pixel-perfect BMP of the live framebuffer, switches pages remotely with `?page=N`, and exposes a JSON info endpoint for discovering available pages.
 
-Just open this in your browser:
+Open the URL in any browser to see the screenshot directly:
 ```
 http://<YOUR-DEVICE-IP>/screenshot
 ```
 
----
-
-## How it works
-
-This is a custom ESPHome component -- you add it to your device's YAML config alongside your existing display setup. After compiling and flashing (the normal ESPHome workflow), your device's built-in web server gains a new `/screenshot` endpoint. Any HTTP client (curl, a browser, a script, a coding agent) can then fetch a pixel-perfect BMP of whatever's on screen.
-
-The simplest way to try it: just open `http://<YOUR-DEVICE-IP>/screenshot` in any browser -- it will display (or download) the BMP directly. From the command line:
-
+Or save it from the command line:
 ```bash
-# Linux / macOS
+# Linux / macOS / Windows (Command Prompt)
 curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 
 # Windows (PowerShell)
 Invoke-WebRequest -Uri http://<YOUR-DEVICE-IP>/screenshot -OutFile screenshot.bmp
-
-# Windows (Command Prompt)
-curl -o screenshot.bmp http://<YOUR-DEVICE-IP>/screenshot
 ```
 
 ---
