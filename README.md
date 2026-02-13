@@ -4,6 +4,67 @@ Remote screenshots for ESPHome displays over HTTP.
 
 Adds `GET /screenshot` to any ESP32 with a display and `web_server`. Fetch a pixel-perfect BMP of the live framebuffer, switch pages remotely with `?page=N`, and discover available pages with a JSON info endpoint.
 
+```bash
+curl -o screenshot.bmp http://<device-ip>/screenshot
+```
+
+---
+
+## Why?
+
+If you're building display UIs on ESPHome, the dev cycle is painful: edit YAML, compile, upload, walk over, squint at a small TFT, walk back, repeat. This component lets you see what's on screen from anywhere with `curl`.
+
+**Let your coding agent close the loop.** After every display lambda change, Claude Code / Codex / Gemini / your coding agent of choice can `curl` a screenshot, view the BMP, and verify the layout looks right -- without you ever looking at the device. This is the use case that prompted the component: AI-assisted display development where the agent can check its own work.
+
+**Remote device monitoring.** Expose the endpoint through ngrok or a Cloudflare tunnel and see what your device is displaying from anywhere. Useful for devices mounted on walls, inside enclosures, or at a different site entirely. No VPN needed.
+
+**Home Assistant integration.** Fire a webhook that fetches the screenshot and posts it to a notification, Lovelace card, or Telegram bot. "What does the controller screen say right now?" -- answered without leaving the couch.
+
+**Auto-generated documentation.** Script a loop that hits `/screenshot/info` to discover all pages, captures each one, and dumps them into a docs folder. Re-run after every UI change and your docs stay current.
+
+**Visual regression testing.** Capture baseline screenshots, make changes, capture again, diff. Catch layout breakage before it ships.
+
+**Remote debugging.** "The display looks wrong" -- now you can see exactly what they see without asking them to photograph their screen.
+
+---
+
+## What it supports
+
+Three page modes, covering every common ESPHome display pattern:
+
+| Mode | Config | How it works |
+|------|--------|-------------|
+| **Single screen** | Just `display_id` | Captures whatever's on screen. No page switching. |
+| **Native pages** | `pages: [page_main, ...]` | Uses ESPHome's built-in `pages:` system. Switches with `?page=N`. |
+| **Global-based pages** | `page_global: current_page` | For UIs that track the current page with a `globals` int. |
+
+Two HTTP endpoints:
+
+| Endpoint | Returns |
+|----------|---------|
+| `GET /screenshot[?page=N]` | 24-bit BMP image of the display |
+| `GET /screenshot/info` | JSON with page count, dimensions, mode, and page names |
+
+```bash
+# Grab the current screen
+curl -o screenshot.bmp http://192.168.1.100/screenshot
+
+# Capture a specific page
+curl -o page2.bmp "http://192.168.1.100/screenshot?page=2"
+
+# Discover what's available
+curl http://192.168.1.100/screenshot/info
+# {"pages":3,"width":320,"height":240,"mode":"native_pages","page_names":["Main","Graph","Settings"]}
+```
+
+---
+
+## Requirements
+
+- **ESP32 with PSRAM** -- ESP32-S3, ESP32-S2, or ESP32 WROVER. The ~225 KB BMP buffer is allocated in PSRAM. Regular ESP32 without PSRAM won't work.
+- **Display using RGB565** -- any `DisplayBuffer` subclass in `BITS_16` colour mode (ILI9XXX, ST7789V, ILI9341, ILI9488, etc.)
+- **`web_server` component enabled** -- the screenshot endpoint hooks into ESPHome's built-in web server
+
 ---
 
 ## Quick Start
@@ -65,7 +126,7 @@ If you used Option B (git), you already did this in step 1.
 
 ### 4. Add the `display_capture` block
 
-Pick the config that matches your setup (see [Page Modes](#which-page-mode-do-i-need) below):
+Pick the config that matches your setup (see [Which page mode do I need?](#which-page-mode-do-i-need) below):
 
 ```yaml
 # Simplest -- just capture whatever's on screen
@@ -236,30 +297,6 @@ curl http://192.168.1.100/screenshot/info
 | `page_global` | ID | No | `globals` int that tracks the current page |
 | `sleep_global` | ID | No | `globals` bool -- wakes display before capture |
 | `page_names` | list of strings | No | Human-readable names for the `/screenshot/info` endpoint |
-
----
-
-## Requirements
-
-- **ESP32 with PSRAM** -- ESP32-S3, ESP32-S2, or ESP32 WROVER. The ~225 KB BMP buffer is allocated in PSRAM. Regular ESP32 without PSRAM won't work.
-- **Display using RGB565** -- any `DisplayBuffer` subclass in `BITS_16` colour mode (ILI9XXX, ST7789V, ILI9341, ILI9488, etc.)
-- **`web_server` component enabled** -- the screenshot endpoint hooks into ESPHome's built-in web server
-
----
-
-## What can you do with this?
-
-**Let your coding agent check its own work.** After every display lambda change, Claude Code / Codex / Gemini / your coding agent of choice can `curl` a screenshot, view the BMP, and verify the layout looks right -- without you ever looking at the device.
-
-**Remote device monitoring.** Expose the endpoint through ngrok or a Cloudflare tunnel and see what your device is displaying from anywhere. No VPN needed.
-
-**Home Assistant integration.** Fire a webhook that fetches the screenshot and posts it to a notification, Lovelace card, or Telegram bot.
-
-**Auto-generated documentation.** Script a loop that hits `/screenshot/info`, captures every page, and dumps them into a docs folder.
-
-**Visual regression testing.** Capture baseline screenshots, make changes, capture again, diff. Catch layout breakage before it ships.
-
-**Remote debugging.** "The display looks wrong" -- now you can see exactly what they see without asking them to photograph their screen.
 
 ---
 
