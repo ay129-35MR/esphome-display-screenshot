@@ -17,6 +17,7 @@ There's no built-in way to see what the display is rendering without physically 
 ```bash
 curl -o screenshot.bmp http://<device-ip>/screenshot
 ```
+You can then (for example) get Claude Code / Codex / Gemini / [insert your coding agent du jour here] to check its own work by reviewing the screen shot, or post device status to a web page (Ngrok, Home assistant webhook etc) to see what your device is displaying remotely.
 
 Want to see a specific page without touching the device?
 
