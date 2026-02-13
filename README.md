@@ -30,20 +30,18 @@ If you're building display UIs on ESPHome, the dev cycle is painful: edit YAML, 
 
 ## Example Screenshots
 
-These were captured from a hot water controller built with an ESP32-S3 and a ST7789V 240x320 TFT (rotated to landscape), driven by a rotary encoder. The device has 7 pages managed via a `globals<int>`. Each image was fetched with a single `curl` call to `/screenshot?page=N` and converted from BMP to PNG.
+These were captured from a hot water controller built with an ESP32-S3 and a ST7789V 240x320 TFT (rotated to landscape), driven by a rotary encoder. The device has 6 pages managed via a `globals<int>`. Each image was fetched with a single `curl` call to `/screenshot?page=N` and converted from BMP to PNG.
 
 | | | |
 |:---:|:---:|:---:|
 | ![Main](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page0.png) | ![History](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page1.png) | ![Guest Info](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page2.png) |
 | Page 0 -- Main | Page 1 -- History | Page 2 -- Guest Info |
-| ![Camera](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page3.png) | ![Display](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page4.png) | ![Kill Switch](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page5.png) |
-| Page 3 -- Camera | Page 4 -- Display | Page 5 -- Kill Switch |
-| ![Cleaning Schedule](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page6.png) | | |
-| Page 6 -- Cleaning Schedule | | |
+| ![Cleaning Schedule](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page3.png) | ![Camera](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page4.png) | ![Display Brightness](https://raw.githubusercontent.com/ay129-35MR/esphome-display-screenshot/main/page5.png) |
+| Page 3 -- Cleaning Schedule | Page 4 -- Camera | Page 5 -- Display Brightness |
 
 ```bash
 # These screenshots were captured with:
-for p in 0 1 2 3 4 5 6; do
+for p in 0 1 2 3 4 5; do
   curl -s -o "page${p}.bmp" "http://<YOUR-DEVICE-IP>/screenshot?page=${p}"
 done
 ```
