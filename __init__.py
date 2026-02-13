@@ -1,12 +1,12 @@
 """
-display_capture — ESPHome external component for remote display screenshots.
+display_capture -- ESPHome external component for remote display screenshots.
 
 Adds GET /screenshot and GET /screenshot/info HTTP endpoints to any ESP32
 device with a display and web_server component. Supports three page modes:
 
-  - Single:       No pages config — captures current screen only
-  - Native pages: pages: [page_main, page_graph, ...] — uses ESPHome DisplayPage
-  - Global pages: page_global: current_page — uses a globals<int> for page tracking
+  - Single:       No pages config -- captures current screen only
+  - Native pages: pages: [page_main, page_graph, ...] -- uses ESPHome DisplayPage
+  - Global pages: page_global: current_page -- uses a globals<int> for page tracking
 
 See README.md for full documentation.
 """

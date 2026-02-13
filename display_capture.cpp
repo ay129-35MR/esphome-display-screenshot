@@ -1,4 +1,4 @@
-// display_capture — implementation file.
+// display_capture -- implementation file.
 //
 // IMPORTANT: The #define protected public hack MUST be the very first thing
 // in this file, before any #include. It makes DisplayBuffer::buffer_ accessible
@@ -56,7 +56,7 @@ int DisplayCaptureHandler::get_page_count() const {
     case NATIVE_PAGES:
       return this->pages_.size();
     case GLOBAL_PAGES:
-      // Global mode doesn't inherently know the page count — use page_names
+      // Global mode doesn't inherently know the page count -- use page_names
       // as the source of truth if provided, otherwise report 0 (unknown).
       return this->page_names_.empty() ? 0 : this->page_names_.size();
     default:
@@ -65,7 +65,7 @@ int DisplayCaptureHandler::get_page_count() const {
 }
 
 // ============================================================================
-// Main loop — runs on the ESPHome main task
+// Main loop -- runs on the ESPHome main task
 // ============================================================================
 //
 // This is where all display buffer access happens. The HTTP task sets
@@ -79,7 +79,7 @@ int DisplayCaptureHandler::get_page_count() const {
 //   4. Read buffer into BMP: generate_bmp_()
 //   5. Restore original page and sleep state
 //   6. Re-render to put the display back: display_->update()
-//   7. Signal semaphore — HTTP task unblocks and sends the BMP
+//   7. Signal semaphore -- HTTP task unblocks and sends the BMP
 
 void DisplayCaptureHandler::loop() {
   if (!this->request_pending_)
@@ -104,7 +104,7 @@ void DisplayCaptureHandler::loop() {
         int idx = this->requested_page_;
         if (idx >= 0 && idx < (int) this->pages_.size()) {
           // Save active page so we can restore it after capture.
-          // get_active_page() returns const*, show_page() takes non-const* —
+          // get_active_page() returns const*, show_page() takes non-const* --
           // the const_cast in the restore path is safe because we're putting
           // back a page that was already active.
           this->saved_native_page_ = this->display_->get_active_page();
@@ -162,12 +162,12 @@ void DisplayCaptureHandler::loop() {
     this->display_->update();
   }
 
-  // Unblock the HTTP handler — it can now send the BMP response.
+  // Unblock the HTTP handler -- it can now send the BMP response.
   xSemaphoreGive(this->semaphore_);
 }
 
 // ============================================================================
-// HTTP handlers — run on the web server's FreeRTOS task
+// HTTP handlers -- run on the web server's FreeRTOS task
 // ============================================================================
 
 /// Screenshot handler: sets a flag for the main loop and blocks until the
@@ -200,7 +200,7 @@ void DisplayCaptureHandler::handle_screenshot_(AsyncWebServerRequest *req) {
 }
 
 /// Info handler: returns JSON metadata about the display and page configuration.
-/// Runs synchronously on the HTTP task — all data is immutable after setup.
+/// Runs synchronously on the HTTP task -- all data is immutable after setup.
 ///
 /// Response format:
 ///   {"pages":3,"width":320,"height":240,"mode":"native_pages","page_names":["Main","Graph","Settings"]}
@@ -248,7 +248,7 @@ void DisplayCaptureHandler::handle_info_(AsyncWebServerRequest *req) {
 }
 
 // ============================================================================
-// BMP generation — called from loop() on the main task
+// BMP generation -- called from loop() on the main task
 // ============================================================================
 //
 // Reads the display's internal RGB565 framebuffer and generates a standard
@@ -270,7 +270,7 @@ void DisplayCaptureHandler::generate_bmp_() {
 
   // get_width()/get_height() return dimensions after rotation (what you see on screen).
   // get_native_width()/get_native_height() return the panel's physical dimensions
-  // (before rotation) — these are needed for buffer indexing.
+  // (before rotation) -- these are needed for buffer indexing.
   int screen_w = this->display_->get_width();
   int screen_h = this->display_->get_height();
   int w_int = this->display_->get_native_width();
@@ -282,7 +282,7 @@ void DisplayCaptureHandler::generate_bmp_() {
   uint32_t pixel_data_size = row_stride * screen_h;
   uint32_t file_size = 54 + pixel_data_size;  // 14 (file header) + 40 (DIB header) + pixels
 
-  // Allocate in PSRAM (external SPI RAM) — ~225 KB for 320x240.
+  // Allocate in PSRAM (external SPI RAM) -- ~225 KB for 320x240.
   // Internal SRAM is only ~320 KB total and mostly used by the framework.
   this->bmp_data_ = (uint8_t *) heap_caps_malloc(file_size, MALLOC_CAP_SPIRAM);
   if (this->bmp_data_ == nullptr) {

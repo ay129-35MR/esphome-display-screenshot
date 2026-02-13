@@ -1,4 +1,4 @@
-// display_capture — ESPHome external component for remote display screenshots.
+// display_capture -- ESPHome external component for remote display screenshots.
 //
 // This header declares the DisplayCaptureHandler class using only forward
 // declarations and public APIs. It compiles cleanly alongside all other
@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-// Forward declarations only — full headers are included in the .cpp file.
+// Forward declarations only -- full headers are included in the .cpp file.
 // This avoids pulling in display_buffer.h (which has the protected buffer_
 // member we need to access) and globals_component.h (which may not exist
 // in builds that don't use globals).
@@ -41,16 +41,16 @@ static const char *const TAG = "display_capture";
 
 /// How the component discovers and switches between display pages.
 enum PageMode {
-  SINGLE,        ///< No page switching — capture current screen only
-  NATIVE_PAGES,  ///< ESPHome DisplayPage objects — uses show_page()/get_active_page()
-  GLOBAL_PAGES,  ///< User-managed globals<int> — sets/restores the int value
+  SINGLE,        ///< No page switching -- capture current screen only
+  NATIVE_PAGES,  ///< ESPHome DisplayPage objects -- uses show_page()/get_active_page()
+  GLOBAL_PAGES,  ///< User-managed globals<int> -- sets/restores the int value
 };
 
 /// HTTP handler that captures the display framebuffer as a BMP image.
 ///
 /// Registers two endpoints on the device's existing web server:
-///   GET /screenshot[?page=N]  — returns a 24-bit BMP of the display
-///   GET /screenshot/info      — returns JSON metadata (page count, dimensions, mode)
+///   GET /screenshot[?page=N]  -- returns a 24-bit BMP of the display
+///   GET /screenshot/info      -- returns JSON metadata (page count, dimensions, mode)
 ///
 /// Thread safety: the /screenshot endpoint uses a binary semaphore to hand off
 /// rendering work to the main ESPHome loop, since the display buffer can only
@@ -107,9 +107,9 @@ class DisplayCaptureHandler : public AsyncWebHandler, public Component {
   int get_page_count() const;
 
  protected:
-  /// Handles GET /screenshot — sets request_pending_ and blocks on semaphore.
+  /// Handles GET /screenshot -- sets request_pending_ and blocks on semaphore.
   void handle_screenshot_(AsyncWebServerRequest *req);
-  /// Handles GET /screenshot/info — returns JSON, no semaphore needed.
+  /// Handles GET /screenshot/info -- returns JSON, no semaphore needed.
   void handle_info_(AsyncWebServerRequest *req);
   /// Reads the display buffer and generates a 24-bit BMP in PSRAM.
   void generate_bmp_();
