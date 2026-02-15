@@ -14,6 +14,10 @@
 #include "esphome/components/display/display.h"
 #undef protected
 
+#ifdef USE_RPI_DPI_RGB
+#include "esphome/components/rpi_dpi_rgb/rpi_dpi_rgb.h"
+#endif
+
 // --- Step 2: Our own header (uses only forward declarations, no buffer access) ---
 #include "display_capture.h"
 
@@ -48,11 +52,15 @@ void DisplayCaptureHandler::setup() {
   else if (this->page_mode_ == GLOBAL_PAGES)
     mode_str = "global_pages";
 
+  const char *backend_str = "display_buffer";
+  if (this->backend_ == BACKEND_RPI_DPI_RGB)
+    backend_str = "rpi_dpi_rgb";
+
   int pages = this->get_page_count();
   if (pages >= 0) {
-    ESP_LOGI(TAG, "Display capture registered at /screenshot (mode: %s, pages: %d)", mode_str, pages);
+    ESP_LOGI(TAG, "Display capture registered at /screenshot (mode: %s, backend: %s, pages: %d)", mode_str, backend_str, pages);
   } else {
-    ESP_LOGI(TAG, "Display capture registered at /screenshot (mode: %s, pages: unknown)", mode_str);
+    ESP_LOGI(TAG, "Display capture registered at /screenshot (mode: %s, backend: %s, pages: unknown)", mode_str, backend_str);
   }
 }
 
@@ -198,7 +206,11 @@ void DisplayCaptureHandler::handle_screenshot_(AsyncWebServerRequest *req) {
 
   if (xSemaphoreTake(this->semaphore_, pdMS_TO_TICKS(5000)) == pdTRUE) {
     if (this->bmp_data_ != nullptr && this->bmp_size_ > 0) {
+#ifdef USE_ESP_IDF
+      auto *response = req->beginResponse_P(200, "image/bmp", this->bmp_data_, this->bmp_size_);
+#else
       auto *response = req->beginResponse(200, "image/bmp", this->bmp_data_, this->bmp_size_);
+#endif
       response->addHeader("Cache-Control", "no-cache");
       req->send(response);
       // Buffer is intentionally NOT freed here. See comment above.
@@ -305,10 +317,6 @@ void DisplayCaptureHandler::generate_bmp_() {
     this->bmp_size_ = 0;
   }
 
-  // All physical display drivers (ILI9XXX, ST7789V, etc.) extend DisplayBuffer.
-  // dynamic_cast is unavailable with -fno-rtti, so we use static_cast.
-  auto *display_buffer = static_cast<display::DisplayBuffer *>(this->display_);
-
   // get_width()/get_height() return dimensions after rotation (what you see on screen).
   // get_native_width()/get_native_height() return the panel's physical dimensions
   // (before rotation) -- these are needed for buffer indexing.
@@ -350,7 +358,41 @@ void DisplayCaptureHandler::generate_bmp_() {
   write_le32_(this->bmp_data_ + 34, pixel_data_size);
 
   // --- Pixel data ---
-  uint8_t *buf = display_buffer->buffer_;
+  // Get the framebuffer pointer using the configured backend.
+  uint8_t *buf = nullptr;
+  if (this->backend_ == BACKEND_RPI_DPI_RGB) {
+#ifdef USE_RPI_DPI_RGB
+    auto *rgb_display = static_cast<rpi_dpi_rgb::RpiDpiRgb *>(this->display_);
+    if (rgb_display->handle_ == nullptr) {
+      ESP_LOGE(TAG, "rpi_dpi_rgb handle is null");
+      heap_caps_free(this->bmp_data_);
+      this->bmp_data_ = nullptr;
+      this->bmp_size_ = 0;
+      return;
+    }
+    void *fb = nullptr;
+    esp_err_t err = esp_lcd_rgb_panel_get_frame_buffer(rgb_display->handle_, 1, &fb);
+    if (err != ESP_OK || fb == nullptr) {
+      ESP_LOGE(TAG, "Failed to get rpi_dpi_rgb frame buffer (%d)", err);
+      heap_caps_free(this->bmp_data_);
+      this->bmp_data_ = nullptr;
+      this->bmp_size_ = 0;
+      return;
+    }
+    buf = static_cast<uint8_t *>(fb);
+#else
+    ESP_LOGE(TAG, "rpi_dpi_rgb backend requested but USE_RPI_DPI_RGB is not enabled in this build");
+    heap_caps_free(this->bmp_data_);
+    this->bmp_data_ = nullptr;
+    this->bmp_size_ = 0;
+    return;
+#endif
+  } else {
+    // Standard DisplayBuffer path (ILI9XXX, ST7789V, etc.)
+    // dynamic_cast is unavailable with -fno-rtti, so we use static_cast.
+    auto *display_buffer = static_cast<display::DisplayBuffer *>(this->display_);
+    buf = display_buffer->buffer_;
+  }
 
   for (int sy = 0; sy < screen_h; sy++) {
     // BMP stores rows bottom-to-top

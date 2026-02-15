@@ -46,6 +46,12 @@ enum PageMode {
   GLOBAL_PAGES,  ///< User-managed globals<int> -- sets/restores the int value
 };
 
+/// Which display backend to use for framebuffer access.
+enum CaptureBackend {
+  BACKEND_DISPLAY_BUFFER,  ///< Standard DisplayBuffer (ILI9XXX, ST7789V, etc.)
+  BACKEND_RPI_DPI_RGB,     ///< rpi_dpi_rgb (ESP32-S3 RGB LCD panels)
+};
+
 /// HTTP handler that captures the display framebuffer as a BMP image.
 ///
 /// Registers two endpoints on the device's existing web server:
@@ -79,6 +85,14 @@ class DisplayCaptureHandler : public AsyncWebHandler, public Component {
   }
 
   void add_page_name(const std::string &name) { this->page_names_.push_back(name); }
+
+  void set_backend(const std::string &backend) {
+    if (backend == "rpi_dpi_rgb") {
+      this->backend_ = BACKEND_RPI_DPI_RGB;
+      return;
+    }
+    this->backend_ = BACKEND_DISPLAY_BUFFER;
+  }
 
   // --- AsyncWebHandler interface ---
 
@@ -136,6 +150,7 @@ class DisplayCaptureHandler : public AsyncWebHandler, public Component {
   globals::GlobalsComponent<bool> *sleep_global_{nullptr};
 
   PageMode page_mode_{SINGLE};
+  CaptureBackend backend_{BACKEND_DISPLAY_BUFFER};  ///< Framebuffer extraction backend
   std::vector<display::DisplayPage *> pages_;       ///< Native page pointers (NATIVE_PAGES mode)
   std::vector<std::string> page_names_;             ///< Human-readable names for /info endpoint
 

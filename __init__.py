@@ -25,6 +25,10 @@ CONF_PAGES = "pages"
 CONF_PAGE_GLOBAL = "page_global"
 CONF_SLEEP_GLOBAL = "sleep_global"
 CONF_PAGE_NAMES = "page_names"
+CONF_BACKEND = "backend"
+
+BACKEND_DISPLAY_BUFFER = "display_buffer"
+BACKEND_RPI_DPI_RGB = "rpi_dpi_rgb"
 
 # C++ class references for code generation
 display_capture_ns = cg.esphome_ns.namespace("display_capture")
@@ -59,6 +63,9 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_SLEEP_GLOBAL): cv.use_id(GlobalsComponent),
         # page_names: human-readable names returned by /screenshot/info
         cv.Optional(CONF_PAGE_NAMES): cv.ensure_list(cv.string),
+        cv.Optional(CONF_BACKEND, default=BACKEND_DISPLAY_BUFFER): cv.one_of(
+            BACKEND_DISPLAY_BUFFER, BACKEND_RPI_DPI_RGB, lower=True
+        ),
     },
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -71,6 +78,7 @@ async def to_code(config):
 
     disp = await cg.get_variable(config[CONF_DISPLAY_ID])
     cg.add(var.set_display(disp))
+    cg.add(var.set_backend(config[CONF_BACKEND]))
 
     # Native pages mode: resolve each DisplayPage ID and pass as a vector
     if CONF_PAGES in config:
