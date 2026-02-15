@@ -38,11 +38,7 @@ With these screenshots you can:
 
 ## Example Screenshots
 
-These were captured from a hot water controller built with an ESP32-S3 and a ST7789V 240x320 TFT (rotated to landscape), driven by a rotary encoder. 
-
-  <img width="1080" height="922" alt="image" src="https://github.com/user-attachments/assets/2b285218-b3c6-4d6f-9b8c-42ce44d5ac81" />
-
-The device has 6 pages managed via a `globals<int>`. Each image was fetched with a single HTTP request to `/screenshot?page=N` and converted from BMP to PNG.
+These were captured from a hot water controller built with an ESP32-S3 and a ST7789V 240x320 TFT (rotated to landscape), driven by a rotary encoder. The device has 6 pages managed via a `globals<int>`. Each image was fetched with a single HTTP request to `/screenshot?page=N` and converted from BMP to PNG.
 
 | | | |
 |:---:|:---:|:---:|
@@ -445,6 +441,13 @@ The output BMP always matches what you see on the physical display, regardless o
 | **Tested on** | ST7789V 240x320 @ rotation 90, ESP32-S3 |
 | **ESPHome** | 2025.11.x and later |
 | **Should work with** | Any `DisplayBuffer` subclass in BITS_16 mode on any PSRAM-equipped ESP32 |
+
+## Support
+
+If you find this useful:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/ay129)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate?business=nyashachipanga%40yahoo.com&currency_code=GBP)
 
 ## License
 
