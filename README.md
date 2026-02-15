@@ -41,7 +41,11 @@ With these screenshots you can:
 
 ## Example Screenshots
 
-These were captured from a hot water controller built with an ESP32-S3 and a ST7789V 240x320 TFT (rotated to landscape), driven by a rotary encoder. The device has 6 pages managed via a `globals<int>`. Each image was fetched with a single HTTP request to `/screenshot?page=N` and converted from BMP to PNG.
+These were captured from [ay129-35MR/tadoHotWaterKnob](https://github.com/ay129-35MR/tadoHotWaterKnob) hot water controller built with an ESP32-S3 and a ST7789V 240x320 TFT (rotated to landscape), driven by a rotary encoder:
+
+  <img width="1080" height="922" alt="image" src="https://github.com/user-attachments/assets/2b285218-b3c6-4d6f-9b8c-42ce44d5ac81" />
+ 
+The device has 6 pages managed via a `globals<int>`. Each image was fetched with a single HTTP request to `/screenshot?page=N` and converted from BMP to PNG.
 
 | | | |
 |:---:|:---:|:---:|
